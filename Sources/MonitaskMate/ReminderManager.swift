@@ -22,7 +22,7 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
         }
     }
 
-    private let center = UNUserNotificationCenter.current()
+    private let center: UNUserNotificationCenter?
     private var timer: Timer?
     private var isTracking = false
     private var activeButNotTrackingSince: Date?
@@ -50,6 +50,7 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
         reminderCooldownMinutes = storedCooldownMinutes == 0 ? 10 : storedCooldownMinutes
         let storedIdleThresholdSeconds = defaults.integer(forKey: activityIdleThresholdSecondsKey)
         activityIdleThresholdSeconds = storedIdleThresholdSeconds == 0 ? 90 : storedIdleThresholdSeconds
+        center = Bundle.main.bundleURL.pathExtension == "app" ? UNUserNotificationCenter.current() : nil
         super.init()
 
         configureNotificationSupport()
@@ -65,14 +66,17 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
 
     func setEnabled(_ enabled: Bool) {
         if enabled {
-            center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
-                DispatchQueue.main.async {
-                    guard let self else {
-                        return
-                    }
-                    self.isEnabled = granted
-                    UserDefaults.standard.set(granted, forKey: self.enabledKey)
+            guard let center else {
+                isEnabled = false
+                UserDefaults.standard.set(false, forKey: enabledKey)
+                return
+            }
+            center.requestAuthorization(options: [.alert, .sound]) { [weak self, enabledKey = self.enabledKey] granted, _ in
+                guard let self else {
+                    return
                 }
+                self.isEnabled = granted
+                UserDefaults.standard.set(granted, forKey: enabledKey)
             }
         } else {
             isEnabled = false
@@ -162,6 +166,9 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
     }
 
     private func configureNotificationSupport() {
+        guard let center else {
+            return
+        }
         center.delegate = self
 
         let snooze15 = UNNotificationAction(identifier: actionSnooze15, title: "Snooze 15m")
@@ -178,6 +185,9 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
     }
 
     private func sendReminderNotification() {
+        guard let center else {
+            return
+        }
         let content = UNMutableNotificationContent()
         content.title = "Monitask is not tracking"
         content.body = "You are active on your Mac, but Monitask appears stopped."
@@ -194,21 +204,19 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        DispatchQueue.main.async {
-            switch response.actionIdentifier {
-            case self.actionSnooze15:
-                self.snooze(minutes: 15)
-            case self.actionSnooze30:
-                self.snooze(minutes: 30)
-            case self.actionSnooze60:
-                self.snooze(minutes: 60)
-            case self.actionDisable:
-                self.setEnabled(false)
-            default:
-                break
-            }
-            completionHandler()
+        switch response.actionIdentifier {
+        case actionSnooze15:
+            snooze(minutes: 15)
+        case actionSnooze30:
+            snooze(minutes: 30)
+        case actionSnooze60:
+            snooze(minutes: 60)
+        case actionDisable:
+            setEnabled(false)
+        default:
+            break
         }
+        completionHandler()
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {

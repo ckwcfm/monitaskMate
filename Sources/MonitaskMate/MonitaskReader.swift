@@ -15,7 +15,7 @@ struct MonitaskReader {
     private struct TrackingEvent {
         let type: TrackingEventType
         let timestamp: Date
-        let appTime: Date?
+        let eventTime: Date
     }
 
     init() {
@@ -76,8 +76,8 @@ struct MonitaskReader {
             activeSeconds = max(Int(latestPeriod.duration), max(0, elapsed))
         } else if isTracking,
                   let latestLogEvent,
-                  latestLogEvent.type == .start,
-                  let startTime = latestLogEvent.appTime {
+                  latestLogEvent.type == .start {
+            let startTime = latestLogEvent.eventTime
             activeSeconds = max(0, Int(now.timeIntervalSince(startTime)))
         }
 
@@ -189,7 +189,8 @@ struct MonitaskReader {
             return nil
         }
 
-        return TrackingEvent(type: type, timestamp: timestamp, appTime: parseAppTime(line))
+        let eventTime = parsePCTime(line) ?? parseAppTime(line) ?? timestamp
+        return TrackingEvent(type: type, timestamp: timestamp, eventTime: eventTime)
     }
 
     private func parseLogTimestamp(_ line: String) -> Date? {
@@ -205,6 +206,28 @@ struct MonitaskReader {
 
     private func parseAppTime(_ line: String) -> Date? {
         guard let range = line.range(of: "App Time: \"") ?? line.range(of: "AppTime: \"") else {
+            return nil
+        }
+
+        let start = range.upperBound
+        guard let end = line[start...].firstIndex(of: "\"") else {
+            return nil
+        }
+
+        let rawDate = String(line[start..<end])
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        if let parsed = formatter.date(from: rawDate) {
+            return parsed
+        }
+
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: rawDate)
+    }
+
+    private func parsePCTime(_ line: String) -> Date? {
+        guard let range = line.range(of: "PC Time: \"") else {
             return nil
         }
 

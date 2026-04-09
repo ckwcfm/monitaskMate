@@ -44,6 +44,20 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
+                    settingPicker(
+                        title: "Counter Update Method",
+                        description: "Choose whether the timer follows Monitask files exactly or increments locally while tracking.",
+                        selection: $viewModel.counterUpdateMethod
+                    ) {
+                        ForEach(TrackingViewModel.CounterUpdateMethod.allCases) { method in
+                            Text(method.label).tag(method)
+                        }
+                    }
+
+                    Text(viewModel.counterUpdateMethod.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     Toggle(isOn: Binding(
                         get: { launchAtLoginManager.isEnabled },
                         set: { launchAtLoginManager.setEnabled($0) }
