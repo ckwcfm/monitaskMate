@@ -6,14 +6,17 @@ struct MonitaskMateApp: App {
     @StateObject private var reminderManager: ReminderManager
     @StateObject private var launchAtLoginManager: LaunchAtLoginManager
     @StateObject private var floatingCounterManager: FloatingCounterManager
+    @StateObject private var controlService: MonitaskControlService
 
     init() {
         let reminderManager = ReminderManager()
         let launchAtLoginManager = LaunchAtLoginManager()
         let floatingCounterManager = FloatingCounterManager()
+        let controlService = MonitaskControlService()
         _reminderManager = StateObject(wrappedValue: reminderManager)
         _launchAtLoginManager = StateObject(wrappedValue: launchAtLoginManager)
         _floatingCounterManager = StateObject(wrappedValue: floatingCounterManager)
+        _controlService = StateObject(wrappedValue: controlService)
         _viewModel = StateObject(
             wrappedValue: TrackingViewModel(
                 reminderManager: reminderManager,
@@ -24,7 +27,11 @@ struct MonitaskMateApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuPanelView(viewModel: viewModel, reminderManager: reminderManager)
+            MenuPanelView(
+                viewModel: viewModel,
+                reminderManager: reminderManager,
+                controlService: controlService
+            )
         } label: {
             Image(nsImage: viewModel.menuBarLabelImage)
         }
@@ -34,7 +41,8 @@ struct MonitaskMateApp: App {
                 viewModel: viewModel,
                 reminderManager: reminderManager,
                 launchAtLoginManager: launchAtLoginManager,
-                floatingCounterManager: floatingCounterManager
+                floatingCounterManager: floatingCounterManager,
+                controlService: controlService
             )
                 .frame(minWidth: 360, minHeight: 240)
         }

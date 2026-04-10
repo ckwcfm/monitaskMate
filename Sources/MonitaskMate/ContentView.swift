@@ -22,6 +22,7 @@ struct ContentView: View {
     @ObservedObject var reminderManager: ReminderManager
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @ObservedObject var floatingCounterManager: FloatingCounterManager
+    @ObservedObject var controlService: MonitaskControlService
     @State private var selectedSection: SectionItem? = .overview
 
     var body: some View {
@@ -44,7 +45,8 @@ struct ContentView: View {
                         viewModel: viewModel,
                         reminderManager: reminderManager,
                         launchAtLoginManager: launchAtLoginManager,
-                        floatingCounterManager: floatingCounterManager
+                        floatingCounterManager: floatingCounterManager,
+                        controlService: controlService
                     )
                 }
             }
@@ -55,6 +57,11 @@ struct ContentView: View {
     }
 
     private var overviewTab: some View {
+        if !controlService.isMonitaskInstalled {
+            return AnyView(notInstalledView)
+        }
+
+        return AnyView(
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
@@ -99,6 +106,19 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
         }
+        )
+    }
+
+    private var notInstalledView: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Monitask Not Installed")
+                .font(.title3)
+                .fontWeight(.semibold)
+            Text("Install Monitask on this Mac to enable tracking, reminders, and controls in MonitaskMate.")
+                .foregroundStyle(.secondary)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -118,11 +138,32 @@ struct MenuPanelView: View {
 
     @ObservedObject var viewModel: TrackingViewModel
     @ObservedObject var reminderManager: ReminderManager
+    @ObservedObject var controlService: MonitaskControlService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("MonitaskMate")
                 .font(.headline)
+
+            if !controlService.isMonitaskInstalled {
+                Text("Monitask Not Installed")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.orange)
+
+                Text("Install Monitask to enable counter sync and control features.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Divider()
+                Button("Preference") {
+                    openWindow(id: "main")
+                    NSApp.activate(ignoringOtherApps: true)
+                    NSApp.windows.first(where: { $0.title == "MonitaskMate" })?.makeKeyAndOrderFront(nil)
+                }
+                Button("Quit") {
+                    NSApp.terminate(nil)
+                }
+            } else {
             Text("Status: \(viewModel.statusText)")
             Text("Total: \(viewModel.format(seconds: viewModel.snapshot.totalSeconds))")
             Text("Updated: \(viewModel.lastUpdatedText)")
@@ -136,6 +177,43 @@ struct MenuPanelView: View {
             .pickerStyle(.menu)
 
             Divider()
+            Button(viewModel.snapshot.isTracking ? "Stop Tracking" : "Start Tracking") {
+                let shouldLaunchAndStart = !viewModel.snapshot.isTracking && controlService.readiness == .monitaskNotRunning
+                controlService.toggleTracking(allowLaunchIfNeeded: shouldLaunchAndStart)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    viewModel.refresh()
+                    controlService.refreshReadiness()
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+                    viewModel.refresh()
+                    controlService.refreshReadiness()
+                }
+            }
+            .disabled(!controlService.readiness.isReady && !( !viewModel.snapshot.isTracking && controlService.readiness == .monitaskNotRunning))
+
+            if !controlService.readiness.isReady {
+                Text(controlService.readiness.label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if controlService.readiness == .accessibilityPermissionRequired {
+                Button("Enable Accessibility") {
+                    controlService.requestAccessibilityPermissionPrompt()
+                    controlService.openAccessibilitySettings()
+                }
+            }
+
+            if let lastActionStatus = controlService.lastActionStatus {
+                Text(lastActionStatus)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+            Text("Reminder")
+                .font(.subheadline)
+                .fontWeight(.semibold)
             Toggle("Smart Reminder", isOn: Binding(
                 get: { reminderManager.isEnabled },
                 set: { reminderManager.setEnabled($0) }
@@ -170,6 +248,7 @@ struct MenuPanelView: View {
             Divider()
             Button("Refresh") {
                 viewModel.refresh()
+                controlService.refreshReadiness()
             }
             Button("Preference") {
                 openWindow(id: "main")
@@ -179,8 +258,12 @@ struct MenuPanelView: View {
             Button("Quit") {
                 NSApp.terminate(nil)
             }
+            }
         }
         .padding(12)
         .frame(minWidth: 220)
+        .onAppear {
+            controlService.refreshReadiness()
+        }
     }
 }

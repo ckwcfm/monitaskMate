@@ -3,7 +3,7 @@ import AppKit
 enum MenuBarLabelFactory {
     static func makeLabel(timeText: String, isTracking: Bool, showSeconds: Bool) -> NSImage {
         let icon = MenuBarIconFactory.makeIcon(isTracking: isTracking)
-        let size = NSSize(width: showSeconds ? 100 : 72, height: 18)
+        let size = NSSize(width: showSeconds ? 100 : 74, height: 18)
         let image = NSImage(size: size)
 
         image.lockFocus()
@@ -11,10 +11,16 @@ enum MenuBarLabelFactory {
         paragraphStyle.alignment = .left
         paragraphStyle.lineBreakMode = .byClipping
 
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.35)
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
+        shadow.shadowBlurRadius = 1
+
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .regular),
-            .foregroundColor: NSColor.labelColor,
-            .paragraphStyle: paragraphStyle
+            .foregroundColor: NSColor.white,
+            .paragraphStyle: paragraphStyle,
+            .shadow: shadow
         ]
 
         let template = showSeconds ? "00h\u{2006}00m\u{2006}00s" : "00h\u{2006}00m"

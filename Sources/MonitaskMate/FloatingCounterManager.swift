@@ -42,6 +42,7 @@ final class FloatingCounterManager: NSObject, ObservableObject, NSWindowDelegate
 
         if isEnabled {
             showPanel()
+
         }
     }
 
