@@ -6,6 +6,7 @@ struct SettingsView: View {
     @ObservedObject var reminderManager: ReminderManager
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @ObservedObject var floatingCounterManager: FloatingCounterManager
+    @ObservedObject var controlService: MonitaskControlService
 
     private let reminderMinuteOptions = [5, 10, 15, 20, 30]
     private let idleThresholdOptions = [30, 60, 90, 120, 180]
@@ -17,6 +18,21 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        if !controlService.isMonitaskInstalled {
+            return AnyView(
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Monitask Not Installed")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    Text("Preferences are unavailable because Monitask is not installed on this Mac.")
+                        .foregroundStyle(.secondary)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            )
+        }
+
+        return AnyView(
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 sectionCard("General") {
@@ -167,6 +183,7 @@ struct SettingsView: View {
             }
             .padding(24)
         }
+        )
     }
 
     private func sectionCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
