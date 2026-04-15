@@ -117,6 +117,43 @@ final class MonitaskControlService: ObservableObject {
         }
     }
 
+    func triggerMonitaskRefresh(allowLaunchIfNeeded: Bool = false) {
+        refreshInstallationState()
+        guard isMonitaskInstalled else {
+            readiness = .monitaskNotInstalled
+            lastActionStatus = "Monitask app is not installed."
+            return
+        }
+
+        guard isAccessibilityGranted() else {
+            readiness = .accessibilityPermissionRequired
+            lastActionStatus = "Enable Accessibility for MonitaskMate first."
+            return
+        }
+
+        guard let appElement = monitaskAppElement() else {
+            if allowLaunchIfNeeded {
+                launchMonitaskAndRetryRefresh()
+                return
+            }
+            readiness = .monitaskNotRunning
+            lastActionStatus = "Monitask app is not running."
+            return
+        }
+
+        guard let target = findRefreshElement(in: appElement) else {
+            lastActionStatus = "Unable to locate Monitask refresh control."
+            return
+        }
+
+        let result = AXUIElementPerformAction(target, kAXPressAction as CFString)
+        if result == .success {
+            setTransientStatus("Refresh command sent to Monitask.")
+        } else {
+            lastActionStatus = "Failed to trigger refresh."
+        }
+    }
+
     private func setTransientStatus(_ message: String) {
         statusClearTask?.cancel()
         lastActionStatus = message
@@ -156,6 +193,32 @@ final class MonitaskControlService: ObservableObject {
         }
     }
 
+    private func launchMonitaskAndRetryRefresh() {
+        launchRetryTask?.cancel()
+
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            isMonitaskInstalled = false
+            readiness = .monitaskNotInstalled
+            lastActionStatus = "Monitask app is not installed."
+            return
+        }
+
+        NSWorkspace.shared.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
+            Task { @MainActor in
+                guard let self else { return }
+
+                if error != nil {
+                    self.readiness = .monitaskNotRunning
+                    self.lastActionStatus = "Unable to launch Monitask."
+                    return
+                }
+
+                self.setTransientStatus("Launching Monitask...")
+                self.retryRefreshAfterLaunch(attemptsRemaining: 14)
+            }
+        }
+    }
+
     private func retryToggleAfterLaunch(attemptsRemaining: Int) {
         launchRetryTask?.cancel()
         launchRetryTask = Task { @MainActor [weak self] in
@@ -190,6 +253,42 @@ final class MonitaskControlService: ObservableObject {
             }
 
             self.lastActionStatus = "Monitask opened, but toggle not ready yet."
+            self.launchRetryTask = nil
+        }
+    }
+
+    private func retryRefreshAfterLaunch(attemptsRemaining: Int) {
+        launchRetryTask?.cancel()
+        launchRetryTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            for _ in 0..<attemptsRemaining {
+                if Task.isCancelled {
+                    self.launchRetryTask = nil
+                    return
+                }
+
+                self.refreshReadiness()
+
+                if let appElement = self.monitaskAppElement(),
+                   let target = self.findRefreshElement(in: appElement) {
+                    let result = AXUIElementPerformAction(target, kAXPressAction as CFString)
+                    self.launchRetryTask = nil
+
+                    if result == .success {
+                        self.setTransientStatus("Monitask launched and refresh triggered.")
+                    } else {
+                        self.lastActionStatus = "Launched Monitask, but failed to trigger refresh."
+                    }
+                    return
+                }
+
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+
+            self.lastActionStatus = "Monitask opened, but refresh control not ready yet."
             self.launchRetryTask = nil
         }
     }
@@ -282,6 +381,40 @@ final class MonitaskControlService: ObservableObject {
         }
 
         return best?.element
+    }
+
+    private func findRefreshElement(in appElement: AXUIElement) -> AXUIElement? {
+        let allElements = gatherElements(in: appElement)
+        guard !allElements.isEmpty else {
+            return nil
+        }
+
+        let pressableButtons = allElements.filter {
+            $0.role == kAXButtonRole as String
+            && $0.actions.contains(kAXPressAction as String)
+            && $0.isEnabled
+        }
+
+        if let refreshByDescription = pressableButtons.first(where: {
+            $0.description.caseInsensitiveCompare("refresh") == .orderedSame
+        }) {
+            return refreshByDescription.element
+        }
+
+        if let refreshByDescriptionPartial = pressableButtons.first(where: {
+            $0.description.localizedCaseInsensitiveContains("refresh")
+        }) {
+            return refreshByDescriptionPartial.element
+        }
+
+        if let syncFallback = pressableButtons.first(where: {
+            $0.title.localizedCaseInsensitiveContains("sync")
+            || $0.description.localizedCaseInsensitiveContains("sync")
+        }) {
+            return syncFallback.element
+        }
+
+        return nil
     }
 
     private func score(_ candidate: Candidate, timerFrame: CGRect?) -> Int {

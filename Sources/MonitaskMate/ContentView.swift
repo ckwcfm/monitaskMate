@@ -191,6 +191,19 @@ struct MenuPanelView: View {
             }
             .disabled(!controlService.readiness.isReady && !( !viewModel.snapshot.isTracking && controlService.readiness == .monitaskNotRunning))
 
+            Button("Sync Now") {
+                let shouldLaunchAndSync = controlService.readiness == .monitaskNotRunning
+                controlService.triggerMonitaskRefresh(allowLaunchIfNeeded: shouldLaunchAndSync)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    viewModel.refresh()
+                    controlService.refreshReadiness()
+                }
+            }
+            .disabled(
+                !controlService.isMonitaskInstalled
+                || controlService.readiness == .accessibilityPermissionRequired
+            )
+
             if !controlService.readiness.isReady {
                 Text(controlService.readiness.label)
                     .font(.caption)
