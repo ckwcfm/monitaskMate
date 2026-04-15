@@ -117,12 +117,13 @@ final class TrackingViewModel: ObservableObject {
         }
     }
 
-    private let reader = MonitaskReader()
     private let reminderManager: ReminderManager
     private let floatingCounterManager: FloatingCounterManager
     private var refreshTimer: Timer?
     private var localTickerTimer: Timer?
     private var displayedTotalSeconds = 0
+    private var isRefreshing = false
+    private var pendingRefresh = false
 
     private static let refreshIntervalKey = "tracking.refreshIntervalSeconds"
     private static let counterDisplayFormatKey = "tracking.counterDisplayFormat"
@@ -212,19 +213,40 @@ final class TrackingViewModel: ObservableObject {
     }
 
     func refresh() {
-        do {
-            let previousWasTracking = snapshot.isTracking
-            let latest = try reader.loadSnapshot()
-            snapshot = latest
+        guard !isRefreshing else {
+            pendingRefresh = true
+            return
+        }
 
-            reconcileDisplayedCounter(previousWasTracking: previousWasTracking, authoritativeTotal: latest.totalSeconds)
-            configureLocalTickerTimerIfNeeded()
-            updateCounterPresentation()
+        isRefreshing = true
+        let previousWasTracking = snapshot.isTracking
 
-            reminderManager.updateTrackingState(snapshot.isTracking)
-            loadError = nil
-        } catch {
-            loadError = "Unable to read Monitask data."
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            defer {
+                self.isRefreshing = false
+                if self.pendingRefresh {
+                    self.pendingRefresh = false
+                    self.refresh()
+                }
+            }
+
+            do {
+                let latest = try await Task.detached(priority: .utility) {
+                    try MonitaskReader().loadSnapshot()
+                }.value
+
+                self.snapshot = latest
+                self.reconcileDisplayedCounter(previousWasTracking: previousWasTracking, authoritativeTotal: latest.totalSeconds)
+                self.configureLocalTickerTimerIfNeeded()
+                self.updateCounterPresentation()
+
+                self.reminderManager.updateTrackingState(self.snapshot.isTracking)
+                self.loadError = nil
+            } catch {
+                self.loadError = "Unable to read Monitask data."
+            }
         }
     }
 
