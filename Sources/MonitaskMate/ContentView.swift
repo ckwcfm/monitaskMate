@@ -23,6 +23,7 @@ struct ContentView: View {
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @ObservedObject var floatingCounterManager: FloatingCounterManager
     @ObservedObject var controlService: MonitaskControlService
+    @ObservedObject var autoPauseManager: AutoPauseManager
     @State private var selectedSection: SectionItem? = .overview
 
     var body: some View {
@@ -46,7 +47,8 @@ struct ContentView: View {
                         reminderManager: reminderManager,
                         launchAtLoginManager: launchAtLoginManager,
                         floatingCounterManager: floatingCounterManager,
-                        controlService: controlService
+                        controlService: controlService,
+                        autoPauseManager: autoPauseManager
                     )
                 }
             }
@@ -213,7 +215,6 @@ struct MenuPanelView: View {
             if controlService.readiness == .accessibilityPermissionRequired {
                 Button("Enable Accessibility") {
                     controlService.requestAccessibilityPermissionPrompt()
-                    controlService.openAccessibilitySettings()
                 }
             }
 

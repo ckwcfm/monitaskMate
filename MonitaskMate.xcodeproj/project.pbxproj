@@ -18,6 +18,8 @@
 		78887B813613A1B8C29C4A2A /* MenuBarIconFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689BFB7AEAA76F278F54A3AC /* MenuBarIconFactory.swift */; };
 		943A11110FE76F9678253F8E /* MonitaskModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2801BDC18CAD6F073619B9D9 /* MonitaskModels.swift */; };
 		9AC1AEAEECCC365EBABCE967 /* FloatingCounterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DB268D2FA94ACA5506A9A15 /* FloatingCounterManager.swift */; };
+		A02F7287A2E59653A0600AF7 /* AutoPauseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1A36FF1CDB95539A58C3C7 /* AutoPauseManager.swift */; };
+		B9B64EBF6BF47DF95BBD0184 /* IdlePausePopupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43469955C21249957AA7FD2 /* IdlePausePopupManager.swift */; };
 		DC950D1FF5CB2BC6B813193E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBAC51AD5E08A587DE2EBE83 /* ContentView.swift */; };
 		FD2E73EBEDFBBF45CC63BBFD /* MonitaskReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91FC3236BA03900420C62B0B /* MonitaskReader.swift */; };
 /* End PBXBuildFile section */
@@ -32,10 +34,12 @@
 		6DB268D2FA94ACA5506A9A15 /* FloatingCounterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingCounterManager.swift; sourceTree = "<group>"; };
 		6DF1003A712072B4B5B8EDBE /* MonitaskControlService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitaskControlService.swift; sourceTree = "<group>"; };
 		79ABBBD006A56CE9AED64D99 /* MenuBarLabelFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarLabelFactory.swift; sourceTree = "<group>"; };
+		8E1A36FF1CDB95539A58C3C7 /* AutoPauseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPauseManager.swift; sourceTree = "<group>"; };
 		91FC3236BA03900420C62B0B /* MonitaskReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitaskReader.swift; sourceTree = "<group>"; };
 		A4CAC2263FCD0AD2D7E38DA3 /* MonitaskMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MonitaskMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D212258219D27183FEBE0F75 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D923AF0440DE2DE25D0F75A1 /* MonitaskMateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitaskMateApp.swift; sourceTree = "<group>"; };
+		E43469955C21249957AA7FD2 /* IdlePausePopupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdlePausePopupManager.swift; sourceTree = "<group>"; };
 		EBAC51AD5E08A587DE2EBE83 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -44,8 +48,10 @@
 			isa = PBXGroup;
 			children = (
 				158E9ED46E95108F6D99FE30 /* Assets.xcassets */,
+				8E1A36FF1CDB95539A58C3C7 /* AutoPauseManager.swift */,
 				EBAC51AD5E08A587DE2EBE83 /* ContentView.swift */,
 				6DB268D2FA94ACA5506A9A15 /* FloatingCounterManager.swift */,
+				E43469955C21249957AA7FD2 /* IdlePausePopupManager.swift */,
 				6BCE501C0F58E0AFCC48879E /* LaunchAtLoginManager.swift */,
 				689BFB7AEAA76F278F54A3AC /* MenuBarIconFactory.swift */,
 				79ABBBD006A56CE9AED64D99 /* MenuBarLabelFactory.swift */,
@@ -148,8 +154,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A02F7287A2E59653A0600AF7 /* AutoPauseManager.swift in Sources */,
 				DC950D1FF5CB2BC6B813193E /* ContentView.swift in Sources */,
 				9AC1AEAEECCC365EBABCE967 /* FloatingCounterManager.swift in Sources */,
+				B9B64EBF6BF47DF95BBD0184 /* IdlePausePopupManager.swift in Sources */,
 				099A02A29B3B91E2F401D2E5 /* LaunchAtLoginManager.swift in Sources */,
 				78887B813613A1B8C29C4A2A /* MenuBarIconFactory.swift in Sources */,
 				1BAD06CBE0FB0E86A103E19B /* MenuBarLabelFactory.swift in Sources */,
@@ -172,7 +180,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -184,7 +192,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.7;
+				MARKETING_VERSION = 0.1.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinwong.MonitaskMate;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -316,7 +324,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -328,7 +336,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.7;
+				MARKETING_VERSION = 0.1.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinwong.MonitaskMate;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;

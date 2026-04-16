@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @ObservedObject var floatingCounterManager: FloatingCounterManager
     @ObservedObject var controlService: MonitaskControlService
+    @ObservedObject var autoPauseManager: AutoPauseManager
 
     private let reminderMinuteOptions = [5, 10, 15, 20, 30]
     private let idleThresholdOptions = [30, 60, 90, 120, 180]
@@ -151,6 +152,34 @@ struct SettingsView: View {
                     .disabled(!reminderManager.isEnabled)
                 }
 
+                sectionCard("Auto Pause") {
+                    Toggle(isOn: $autoPauseManager.isEnabled) {
+                        settingTitleDescription(
+                            title: "Auto Pause by Monitask Idle",
+                            description: "Stops tracking automatically when Monitask reports you as idle."
+                        )
+                    }
+
+                    settingPicker(
+                        title: "Idle Threshold",
+                        description: "How many idle minutes from Monitask trigger automatic pause.",
+                        selection: $autoPauseManager.idleThresholdMinutes
+                    ) {
+                        ForEach(AutoPauseManager.thresholdOptionsMinutes, id: \.self) { minutes in
+                            Text("\(minutes) minute\(minutes == 1 ? "" : "s")").tag(minutes)
+                        }
+                    }
+                    .disabled(!autoPauseManager.isEnabled)
+
+                    Toggle(isOn: $autoPauseManager.showsTopPopup) {
+                        settingTitleDescription(
+                            title: "Show Top Popup",
+                            description: "Shows an always-on-top popup when auto pause stops tracking."
+                        )
+                    }
+                    .disabled(!autoPauseManager.isEnabled)
+                }
+
                 sectionCard("Diagnostics") {
                     Text("Last Update: \(viewModel.lastUpdatedText)")
                     Text("Status: \(viewModel.statusText)")
@@ -172,6 +201,7 @@ struct SettingsView: View {
                         reminderManager.resetToDefaults()
                         launchAtLoginManager.setEnabled(false)
                         floatingCounterManager.resetToDefaults()
+                        autoPauseManager.resetToDefaults()
                     }
                 }
 

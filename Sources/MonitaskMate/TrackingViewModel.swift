@@ -94,6 +94,7 @@ final class TrackingViewModel: ObservableObject {
         totalSeconds: 0,
         activeSeconds: 0,
         selectedProjectName: "Loading",
+        lastActiveAt: nil,
         lastUpdated: Date()
     )
     @Published private(set) var loadError: String?
@@ -119,6 +120,8 @@ final class TrackingViewModel: ObservableObject {
 
     private let reminderManager: ReminderManager
     private let floatingCounterManager: FloatingCounterManager
+    private let autoPauseManager: AutoPauseManager
+    private let controlService: MonitaskControlService
     private var refreshTimer: Timer?
     private var localTickerTimer: Timer?
     private var displayedTotalSeconds = 0
@@ -130,9 +133,16 @@ final class TrackingViewModel: ObservableObject {
     private static let counterUpdateMethodKey = "tracking.counterUpdateMethod"
     private static let localTickerDriftSnapThreshold = 2
 
-    init(reminderManager: ReminderManager, floatingCounterManager: FloatingCounterManager) {
+    init(
+        reminderManager: ReminderManager,
+        floatingCounterManager: FloatingCounterManager,
+        autoPauseManager: AutoPauseManager,
+        controlService: MonitaskControlService
+    ) {
         self.reminderManager = reminderManager
         self.floatingCounterManager = floatingCounterManager
+        self.autoPauseManager = autoPauseManager
+        self.controlService = controlService
         menuBarLabelImage = MenuBarLabelFactory.makeLabel(timeText: "00h 00m", isTracking: false, showSeconds: false)
 
         let storedDisplayFormat = UserDefaults.standard.string(forKey: Self.counterDisplayFormatKey)
@@ -243,6 +253,9 @@ final class TrackingViewModel: ObservableObject {
                 self.updateCounterPresentation()
 
                 self.reminderManager.updateTrackingState(self.snapshot.isTracking)
+                self.autoPauseManager.evaluate(snapshot: self.snapshot, controlService: self.controlService) { [weak self] in
+                    self?.resumeTrackingFromAutoPausePopup()
+                }
                 self.loadError = nil
             } catch {
                 self.loadError = "Unable to read Monitask data."
@@ -361,6 +374,20 @@ final class TrackingViewModel: ObservableObject {
             isTracking: snapshot.isTracking,
             showSeconds: counterDisplayFormat == .hoursMinutesSeconds
         )
+    }
+
+    private func resumeTrackingFromAutoPausePopup() {
+        let shouldLaunchAndStart = controlService.readiness == .monitaskNotRunning
+        controlService.toggleTracking(allowLaunchIfNeeded: shouldLaunchAndStart)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.refresh()
+            self?.controlService.refreshReadiness()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in
+            self?.refresh()
+            self?.controlService.refreshReadiness()
+        }
     }
 
     private static let timeFormatter: DateFormatter = {

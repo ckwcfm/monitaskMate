@@ -86,6 +86,7 @@ struct MonitaskReader {
             totalSeconds: savedSeconds + activeSeconds,
             activeSeconds: activeSeconds,
             selectedProjectName: selectedProject?.name ?? "Unknown",
+            lastActiveAt: latestPeriod?.dateLastActive,
             lastUpdated: now
         )
     }

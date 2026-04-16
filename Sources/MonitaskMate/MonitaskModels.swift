@@ -51,5 +51,6 @@ struct TrackingSnapshot {
     let totalSeconds: Int
     let activeSeconds: Int
     let selectedProjectName: String
+    let lastActiveAt: Date?
     let lastUpdated: Date
 }
