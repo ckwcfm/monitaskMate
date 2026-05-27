@@ -114,7 +114,6 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					4525D205643506262065ED06 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -180,8 +179,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 9;
-				DEVELOPMENT_TEAM = "";
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = HMG393LK63;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MonitaskMate;
@@ -192,7 +191,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.8;
+				MARKETING_VERSION = 0.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinwong.MonitaskMate;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -324,8 +323,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 9;
-				DEVELOPMENT_TEAM = "";
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = HMG393LK63;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MonitaskMate;
@@ -336,7 +335,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.8;
+				MARKETING_VERSION = 0.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinwong.MonitaskMate;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;

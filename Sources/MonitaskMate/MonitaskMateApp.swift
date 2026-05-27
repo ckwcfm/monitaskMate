@@ -38,7 +38,8 @@ struct MonitaskMateApp: App {
             MenuPanelView(
                 viewModel: viewModel,
                 reminderManager: reminderManager,
-                controlService: controlService
+                controlService: controlService,
+                autoPauseManager: autoPauseManager
             )
         } label: {
             Image(nsImage: viewModel.menuBarLabelImage)

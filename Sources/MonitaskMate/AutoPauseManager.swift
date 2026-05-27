@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 @MainActor
 final class AutoPauseManager: ObservableObject {
@@ -8,7 +9,7 @@ final class AutoPauseManager: ObservableObject {
         didSet {
             UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
             if !isEnabled {
-                resetIdleEpisodeTracking()
+                resetSessionPauseTracking()
                 popupManager.hide()
             }
         }
@@ -35,6 +36,7 @@ final class AutoPauseManager: ObservableObject {
     }
 
     private let popupManager: IdlePausePopupManager
+    private let logger = Logger(subsystem: "MonitaskMate", category: "AutoPause")
     private var hasAutoPausedCurrentIdleEpisode = false
     private var lastAutoPauseAt: Date?
     private var awaitingPauseConfirmation = false
@@ -68,12 +70,13 @@ final class AutoPauseManager: ObservableObject {
 
     func evaluate(snapshot: TrackingSnapshot, controlService: MonitaskControlService, onResumeRequested: @escaping () -> Void) {
         guard isEnabled else {
-            resetIdleEpisodeTracking()
+            resetSessionPauseTracking()
             return
         }
 
         if awaitingPauseConfirmation {
             if !snapshot.isTracking {
+                logger.debug("Auto pause confirmed. idleMinutes=\(self.pendingPopupIdleMinutes ?? 0)")
                 awaitingPauseConfirmation = false
                 if showsTopPopup, let idleMinutes = pendingPopupIdleMinutes {
                     popupManager.showPausedMessage(idleMinutes: idleMinutes, onResume: onResumeRequested)
@@ -84,14 +87,16 @@ final class AutoPauseManager: ObservableObject {
 
             if let lastAutoPauseAt,
                Date().timeIntervalSince(lastAutoPauseAt) > 8 {
+                logger.warning("Auto pause confirmation timed out; resetting idle episode")
                 awaitingPauseConfirmation = false
                 pendingPopupIdleMinutes = nil
+                hasAutoPausedCurrentIdleEpisode = false
             }
             return
         }
 
         guard snapshot.isTracking else {
-            resetIdleEpisodeTracking()
+            resetSessionPauseTracking()
             return
         }
 
@@ -104,7 +109,7 @@ final class AutoPauseManager: ObservableObject {
         let thresholdSeconds = TimeInterval(idleThresholdMinutes * 60)
 
         if idleSeconds < thresholdSeconds {
-            resetIdleEpisodeTracking()
+            resetSessionPauseTracking()
             return
         }
 
@@ -114,6 +119,7 @@ final class AutoPauseManager: ObservableObject {
 
         if let lastAutoPauseAt,
            now.timeIntervalSince(lastAutoPauseAt) < Self.pauseCooldownSeconds {
+            logger.debug("Auto pause suppressed by cooldown")
             return
         }
 
@@ -121,6 +127,7 @@ final class AutoPauseManager: ObservableObject {
         self.lastAutoPauseAt = now
         awaitingPauseConfirmation = true
         pendingPopupIdleMinutes = max(1, Int(idleSeconds / 60))
+        logger.notice("Triggering auto pause. idleSeconds=\(Int(idleSeconds)) thresholdSeconds=\(Int(thresholdSeconds))")
 
         controlService.toggleTracking(allowLaunchIfNeeded: false)
     }
@@ -129,11 +136,11 @@ final class AutoPauseManager: ObservableObject {
         isEnabled = false
         idleThresholdMinutes = Self.defaultThresholdMinutes
         showsTopPopup = true
-        resetIdleEpisodeTracking()
+        resetSessionPauseTracking()
         popupManager.hide()
     }
 
-    private func resetIdleEpisodeTracking() {
+    private func resetSessionPauseTracking() {
         hasAutoPausedCurrentIdleEpisode = false
         awaitingPauseConfirmation = false
         pendingPopupIdleMinutes = nil

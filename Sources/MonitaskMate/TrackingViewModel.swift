@@ -93,6 +93,8 @@ final class TrackingViewModel: ObservableObject {
         isTracking: false,
         totalSeconds: 0,
         activeSeconds: 0,
+        monthlyTotalSeconds: 0,
+        todayActivityPercent: nil,
         selectedProjectName: "Loading",
         lastActiveAt: nil,
         lastUpdated: Date()
@@ -117,6 +119,7 @@ final class TrackingViewModel: ObservableObject {
             configureRefreshTimer()
         }
     }
+    @Published private(set) var scheduledPauseRemainingSeconds: Int?
 
     private let reminderManager: ReminderManager
     private let floatingCounterManager: FloatingCounterManager
@@ -127,6 +130,9 @@ final class TrackingViewModel: ObservableObject {
     private var displayedTotalSeconds = 0
     private var isRefreshing = false
     private var pendingRefresh = false
+    private var pendingForceRefresh = false
+    private var scheduledPauseTask: Task<Void, Never>?
+    private var actionRefreshTask: Task<Void, Never>?
 
     private static let refreshIntervalKey = "tracking.refreshIntervalSeconds"
     private static let counterDisplayFormatKey = "tracking.counterDisplayFormat"
@@ -153,8 +159,10 @@ final class TrackingViewModel: ObservableObject {
 
         let stored = UserDefaults.standard.integer(forKey: Self.refreshIntervalKey)
         refreshInterval = RefreshInterval(rawValue: stored) ?? .oneSecond
+        scheduledPauseRemainingSeconds = nil
 
-        refresh()
+        controlService.refreshReadiness()
+        refresh(forceReload: true)
         configureRefreshTimer()
     }
 
@@ -222,9 +230,81 @@ final class TrackingViewModel: ObservableObject {
         refreshInterval.label
     }
 
-    func refresh() {
+    var monthlyTotalText: String {
+        format(seconds: snapshot.monthlyTotalSeconds)
+    }
+
+    var todayActivityText: String {
+        guard let percent = snapshot.todayActivityPercent else {
+            return "N/A"
+        }
+        return String(format: "%.0f%%", percent)
+    }
+
+    var scheduledPauseText: String? {
+        guard let remaining = scheduledPauseRemainingSeconds else {
+            return nil
+        }
+        let minutes = remaining / 60
+        let seconds = remaining % 60
+        return String(format: "Pausing in %dm %02ds", minutes, seconds)
+    }
+
+    var hasScheduledPause: Bool {
+        scheduledPauseRemainingSeconds != nil
+    }
+
+    func schedulePause(minutes: Int) {
+        guard snapshot.isTracking else {
+            cancelScheduledPause()
+            return
+        }
+
+        let clampedMinutes = min(max(minutes, 1), 9)
+        scheduledPauseTask?.cancel()
+        let totalSeconds = clampedMinutes * 60
+        scheduledPauseRemainingSeconds = totalSeconds
+
+        scheduledPauseTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            var remainingSeconds = totalSeconds
+            while remainingSeconds > 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled {
+                    return
+                }
+                remainingSeconds -= 1
+                self.scheduledPauseRemainingSeconds = remainingSeconds
+            }
+
+            self.scheduledPauseRemainingSeconds = nil
+            self.scheduledPauseTask = nil
+
+            if !self.snapshot.isTracking {
+                self.refresh()
+                try? await Task.sleep(nanoseconds: 350_000_000)
+            }
+
+            guard self.snapshot.isTracking else {
+                return
+            }
+
+            self.controlService.toggleTracking(allowLaunchIfNeeded: false)
+            self.refreshAfterUserAction()
+        }
+    }
+
+    func cancelScheduledPause() {
+        scheduledPauseTask?.cancel()
+        scheduledPauseTask = nil
+        scheduledPauseRemainingSeconds = nil
+    }
+
+    func refresh(forceReload: Bool = false) {
         guard !isRefreshing else {
             pendingRefresh = true
+            pendingForceRefresh = pendingForceRefresh || forceReload
             return
         }
 
@@ -237,17 +317,25 @@ final class TrackingViewModel: ObservableObject {
             defer {
                 self.isRefreshing = false
                 if self.pendingRefresh {
+                    let shouldForceReload = self.pendingForceRefresh
                     self.pendingRefresh = false
-                    self.refresh()
+                    self.pendingForceRefresh = false
+                    self.refresh(forceReload: shouldForceReload)
                 }
             }
 
             do {
                 let latest = try await Task.detached(priority: .utility) {
-                    try MonitaskReader().loadSnapshot()
+                    if forceReload {
+                        MonitaskReader.invalidateCaches()
+                    }
+                    return try MonitaskReader().loadSnapshot()
                 }.value
 
                 self.snapshot = latest
+                if !latest.isTracking, self.hasScheduledPause {
+                    self.cancelScheduledPause()
+                }
                 self.reconcileDisplayedCounter(previousWasTracking: previousWasTracking, authoritativeTotal: latest.totalSeconds)
                 self.configureLocalTickerTimerIfNeeded()
                 self.updateCounterPresentation()
@@ -260,6 +348,30 @@ final class TrackingViewModel: ObservableObject {
             } catch {
                 self.loadError = "Unable to read Monitask data."
             }
+        }
+    }
+
+    func refreshAfterUserAction() {
+        actionRefreshTask?.cancel()
+        actionRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            let delays: [UInt64] = [0, 350_000_000, 900_000_000, 1_500_000_000, 2_500_000_000, 4_000_000_000, 7_000_000_000, 11_000_000_000]
+            for delay in delays {
+                if Task.isCancelled {
+                    return
+                }
+                if delay > 0 {
+                    try? await Task.sleep(nanoseconds: delay)
+                }
+                if Task.isCancelled {
+                    return
+                }
+                self.refresh(forceReload: true)
+                self.controlService.refreshReadiness()
+            }
+
+            self.actionRefreshTask = nil
         }
     }
 
@@ -379,15 +491,7 @@ final class TrackingViewModel: ObservableObject {
     private func resumeTrackingFromAutoPausePopup() {
         let shouldLaunchAndStart = controlService.readiness == .monitaskNotRunning
         controlService.toggleTracking(allowLaunchIfNeeded: shouldLaunchAndStart)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            self?.refresh()
-            self?.controlService.refreshReadiness()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in
-            self?.refresh()
-            self?.controlService.refreshReadiness()
-        }
+        refreshAfterUserAction()
     }
 
     private static let timeFormatter: DateFormatter = {

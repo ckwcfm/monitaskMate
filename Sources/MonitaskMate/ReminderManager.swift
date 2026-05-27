@@ -3,7 +3,8 @@ import UserNotifications
 import CoreGraphics
 import Combine
 
-final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
+@MainActor
+final class ReminderManager: NSObject, ObservableObject {
     @Published private(set) var isEnabled: Bool
     @Published private(set) var snoozeUntil: Date?
     @Published var gracePeriodMinutes: Int {
@@ -57,6 +58,10 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
         startTimer()
     }
 
+    deinit {
+        timer?.invalidate()
+    }
+
     func updateTrackingState(_ isTracking: Bool) {
         self.isTracking = isTracking
         if isTracking {
@@ -72,11 +77,13 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
                 return
             }
             center.requestAuthorization(options: [.alert, .sound]) { [weak self, enabledKey = self.enabledKey] granted, _ in
-                guard let self else {
-                    return
+                Task { @MainActor in
+                    guard let self else {
+                        return
+                    }
+                    self.isEnabled = granted
+                    UserDefaults.standard.set(granted, forKey: enabledKey)
                 }
-                self.isEnabled = granted
-                UserDefaults.standard.set(granted, forKey: enabledKey)
             }
         } else {
             isEnabled = false
@@ -116,7 +123,9 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
 
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
-            self?.checkReminderCondition()
+            Task { @MainActor in
+                self?.checkReminderCondition()
+            }
         }
         timer?.tolerance = 2
     }
@@ -200,26 +209,44 @@ final class ReminderManager: NSObject, ObservableObject, UNUserNotificationCente
             trigger: nil
         )
 
-        center.add(request)
-    }
-
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        switch response.actionIdentifier {
-        case actionSnooze15:
-            snooze(minutes: 15)
-        case actionSnooze30:
-            snooze(minutes: 30)
-        case actionSnooze60:
-            snooze(minutes: 60)
-        case actionDisable:
-            setEnabled(false)
-        default:
-            break
+        center.add(request) { [weak self] error in
+            guard let self, error != nil else {
+                return
+            }
+            Task { @MainActor in
+                self.lastReminderDate = nil
+            }
         }
-        completionHandler()
     }
 
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+}
+
+extension ReminderManager: UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        Task { @MainActor [weak self] in
+            guard let self else {
+                completionHandler()
+                return
+            }
+
+            switch response.actionIdentifier {
+            case self.actionSnooze15:
+                self.snooze(minutes: 15)
+            case self.actionSnooze30:
+                self.snooze(minutes: 30)
+            case self.actionSnooze60:
+                self.snooze(minutes: 60)
+            case self.actionDisable:
+                self.setEnabled(false)
+            default:
+                break
+            }
+
+            completionHandler()
+        }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound])
     }
 }

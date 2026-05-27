@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import ApplicationServices
+import OSLog
 
 @MainActor
 final class MonitaskControlService: ObservableObject {
@@ -41,6 +42,8 @@ final class MonitaskControlService: ObservableObject {
     @Published private(set) var lastActionStatus: String?
     @Published private(set) var isMonitaskInstalled: Bool = true
 
+    private let logger = Logger(subsystem: "MonitaskMate", category: "ControlService")
+
     private let bundleIdentifier = "com.seleike.Monitask-Client-MacOS"
     private var permissionPollTask: Task<Void, Never>?
     private var statusClearTask: Task<Void, Never>?
@@ -78,32 +81,38 @@ final class MonitaskControlService: ObservableObject {
     }
 
     func toggleTracking(allowLaunchIfNeeded: Bool = false) {
+        logger.debug("toggleTracking requested. allowLaunchIfNeeded=\(allowLaunchIfNeeded, privacy: .public)")
         refreshInstallationState()
         guard isMonitaskInstalled else {
             readiness = .monitaskNotInstalled
             lastActionStatus = "Monitask app is not installed."
+            logger.warning("toggleTracking blocked: monitask not installed")
             return
         }
 
         guard isAccessibilityGranted() else {
             readiness = .accessibilityPermissionRequired
             lastActionStatus = "Enable Accessibility for MonitaskMate first."
+            logger.warning("toggleTracking blocked: accessibility permission missing")
             return
         }
 
         guard let appElement = monitaskAppElement() else {
             if allowLaunchIfNeeded {
+                logger.notice("toggleTracking: Monitask not running, launching app")
                 launchMonitaskAndRetryToggle()
                 return
             }
             readiness = .monitaskNotRunning
             lastActionStatus = "Monitask app is not running."
+            logger.warning("toggleTracking blocked: Monitask not running")
             return
         }
 
         guard let target = findToggleElement(in: appElement) else {
             readiness = .controlNotFound
             lastActionStatus = "Unable to locate Monitask toggle control."
+            logger.warning("toggleTracking failed: toggle control not found")
             return
         }
 
@@ -111,9 +120,11 @@ final class MonitaskControlService: ObservableObject {
         if result == .success {
             readiness = .ready
             setTransientStatus("Toggle sent to Monitask.")
+            logger.notice("toggleTracking succeeded")
         } else {
             readiness = .failed("Toggle failed (\(result.rawValue)).")
             lastActionStatus = "Failed to toggle tracking."
+            logger.error("toggleTracking failed with AX error \(result.rawValue)")
         }
     }
 
@@ -373,14 +384,35 @@ final class MonitaskControlService: ObservableObject {
             return nil
         }
 
+        let labeledCandidates = candidates.filter { isTrackingToggleCandidate($0) }
+        let preferredCandidates = labeledCandidates.isEmpty ? candidates : labeledCandidates
+
         let enabledCandidates = candidates.filter { $0.isEnabled }
-        let source = enabledCandidates.isEmpty ? candidates : enabledCandidates
+        let enabledPreferredCandidates = preferredCandidates.filter { $0.isEnabled }
+        let source = enabledPreferredCandidates.isEmpty
+            ? (enabledCandidates.isEmpty ? preferredCandidates : enabledCandidates)
+            : enabledPreferredCandidates
 
         let best = source.max { lhs, rhs in
             score(lhs, timerFrame: timerFrame) < score(rhs, timerFrame: timerFrame)
         }
 
         return best?.element
+    }
+
+    private func isTrackingToggleCandidate(_ candidate: Candidate) -> Bool {
+        let title = candidate.title.lowercased()
+        let description = candidate.description.lowercased()
+        if title.contains("time tracking") || description.contains("time tracking") {
+            return true
+        }
+        if title.contains("start tracking") || title.contains("stop tracking") {
+            return true
+        }
+        if description.contains("start tracking") || description.contains("stop tracking") {
+            return true
+        }
+        return false
     }
 
     private func findRefreshElement(in appElement: AXUIElement) -> AXUIElement? {
@@ -419,9 +451,19 @@ final class MonitaskControlService: ObservableObject {
 
     private func score(_ candidate: Candidate, timerFrame: CGRect?) -> Int {
         var total = 0
+        let title = candidate.title.lowercased()
+        let description = candidate.description.lowercased()
 
         if candidate.role == kAXCheckBoxRole as String {
             total += 200
+        }
+
+        if title.contains("time tracking") || description.contains("time tracking") {
+            total += 700
+        }
+
+        if title.contains("start tracking") || title.contains("stop tracking") || description.contains("start tracking") || description.contains("stop tracking") {
+            total += 300
         }
 
         if candidate.frame.width >= 36, candidate.frame.width <= 74,
@@ -429,7 +471,7 @@ final class MonitaskControlService: ObservableObject {
             total += 120
         }
 
-        if candidate.title == "Add" || candidate.description.lowercased().contains("refresh") {
+        if candidate.title == "Add" || description.contains("refresh") {
             total -= 500
         }
 
@@ -458,11 +500,18 @@ final class MonitaskControlService: ObservableObject {
     }
 
     private func gatherElements(in appElement: AXUIElement) -> [Candidate] {
+        let deadline = CFAbsoluteTimeGetCurrent() + 0.35
+        let maxVisitedCount = 1400
         var result: [Candidate] = []
         var queue: [AXUIElement] = [appElement]
         var visited = Set<String>()
+        let rootID = "\(Unmanaged.passUnretained(appElement).toOpaque())"
 
         while let current = queue.popLast() {
+            if CFAbsoluteTimeGetCurrent() > deadline || visited.count >= maxVisitedCount {
+                break
+            }
+
             let id = "\(Unmanaged.passUnretained(current).toOpaque())"
             if visited.contains(id) { continue }
             visited.insert(id)
@@ -474,7 +523,9 @@ final class MonitaskControlService: ObservableObject {
             if let children = copyElementsAttribute(current, attribute: kAXChildrenAttribute as CFString) {
                 queue.append(contentsOf: children)
             }
-            if let windows = copyElementsAttribute(current, attribute: kAXWindowsAttribute as CFString) {
+
+            if id == rootID,
+               let windows = copyElementsAttribute(current, attribute: kAXWindowsAttribute as CFString) {
                 queue.append(contentsOf: windows)
             }
         }

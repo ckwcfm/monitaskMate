@@ -7,6 +7,7 @@ struct MonitaskPeriod: Decodable {
     let dateEnd: Date
     let dateLastActive: Date
     let duration: Double
+    let activitys: [MonitaskActivitySlice]?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -15,6 +16,17 @@ struct MonitaskPeriod: Decodable {
         case dateEnd = "DateEnd"
         case dateLastActive = "DateLastActive"
         case duration = "Duration"
+        case activitys = "Activitys"
+    }
+}
+
+struct MonitaskActivitySlice: Decodable {
+    let data: String
+    let date: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case data = "Data"
+        case date = "Date"
     }
 }
 
@@ -50,6 +62,8 @@ struct TrackingSnapshot {
     let isTracking: Bool
     let totalSeconds: Int
     let activeSeconds: Int
+    let monthlyTotalSeconds: Int
+    let todayActivityPercent: Double?
     let selectedProjectName: String
     let lastActiveAt: Date?
     let lastUpdated: Date

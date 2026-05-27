@@ -81,9 +81,20 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     metric(title: "Total", value: viewModel.format(seconds: viewModel.snapshot.totalSeconds))
                     metric(title: "Current Session", value: viewModel.format(seconds: viewModel.snapshot.activeSeconds))
+                    metric(title: "This Month", value: viewModel.monthlyTotalText)
+                    metric(title: "Today Activity", value: viewModel.todayActivityText)
                     metric(title: "Reminder", value: reminderManager.isEnabled ? "On" : "Off")
                     if let snoozeText = reminderManager.snoozeText {
                         metric(title: "Snooze", value: snoozeText)
+                    }
+                    if let scheduledPauseText = viewModel.scheduledPauseText {
+                        metric(title: "Scheduled Pause", value: scheduledPauseText)
+                    }
+                }
+
+                if viewModel.hasScheduledPause {
+                    Button("Cancel Scheduled Pause") {
+                        viewModel.cancelScheduledPause()
                     }
                 }
 
@@ -141,6 +152,7 @@ struct MenuPanelView: View {
     @ObservedObject var viewModel: TrackingViewModel
     @ObservedObject var reminderManager: ReminderManager
     @ObservedObject var controlService: MonitaskControlService
+    @ObservedObject var autoPauseManager: AutoPauseManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -168,6 +180,8 @@ struct MenuPanelView: View {
             } else {
             Text("Status: \(viewModel.statusText)")
             Text("Total: \(viewModel.format(seconds: viewModel.snapshot.totalSeconds))")
+            Text("This Month: \(viewModel.monthlyTotalText)")
+            Text("Today Activity: \(viewModel.todayActivityText)")
             Text("Updated: \(viewModel.lastUpdatedText)")
                 .foregroundStyle(.secondary)
 
@@ -182,24 +196,35 @@ struct MenuPanelView: View {
             Button(viewModel.snapshot.isTracking ? "Stop Tracking" : "Start Tracking") {
                 let shouldLaunchAndStart = !viewModel.snapshot.isTracking && controlService.readiness == .monitaskNotRunning
                 controlService.toggleTracking(allowLaunchIfNeeded: shouldLaunchAndStart)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    viewModel.refresh()
-                    controlService.refreshReadiness()
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
-                    viewModel.refresh()
-                    controlService.refreshReadiness()
+                viewModel.refreshAfterUserAction()
+            }
+            .disabled(
+                !controlService.isMonitaskInstalled
+                || controlService.readiness == .accessibilityPermissionRequired
+            )
+
+            Menu("Schedule Pause") {
+                ForEach(1...9, id: \.self) { minutes in
+                    Button("In \(minutes)m") {
+                        viewModel.schedulePause(minutes: minutes)
+                    }
                 }
             }
-            .disabled(!controlService.readiness.isReady && !( !viewModel.snapshot.isTracking && controlService.readiness == .monitaskNotRunning))
+            .disabled(!viewModel.snapshot.isTracking)
+
+            if let scheduledPauseText = viewModel.scheduledPauseText {
+                Text(scheduledPauseText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Cancel Scheduled Pause") {
+                    viewModel.cancelScheduledPause()
+                }
+            }
 
             Button("Sync Now") {
                 let shouldLaunchAndSync = controlService.readiness == .monitaskNotRunning
                 controlService.triggerMonitaskRefresh(allowLaunchIfNeeded: shouldLaunchAndSync)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    viewModel.refresh()
-                    controlService.refreshReadiness()
-                }
+                viewModel.refreshAfterUserAction()
             }
             .disabled(
                 !controlService.isMonitaskInstalled
@@ -223,6 +248,24 @@ struct MenuPanelView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Divider()
+            Text("Auto Pause")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Toggle("Auto Pause", isOn: $autoPauseManager.isEnabled)
+
+            Picker("Idle Threshold", selection: $autoPauseManager.idleThresholdMinutes) {
+                ForEach(AutoPauseManager.thresholdOptionsMinutes, id: \.self) { minutes in
+                    Text("\(minutes) min").tag(minutes)
+                }
+            }
+            .pickerStyle(.menu)
+            .disabled(!autoPauseManager.isEnabled)
+
+            Toggle("Top Popup", isOn: $autoPauseManager.showsTopPopup)
+                .disabled(!autoPauseManager.isEnabled)
 
             Divider()
             Text("Reminder")
