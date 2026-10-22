@@ -365,9 +365,7 @@ final class MonitaskControlService: ObservableObject {
     }
 
     private func findToggleElement(in appElement: AXUIElement) -> AXUIElement? {
-        guard let allElements = trackingWindowElements(in: appElement) else {
-            return nil
-        }
+        let allElements = trackingWindowElements(in: appElement)
         guard !allElements.isEmpty else {
             return nil
         }
@@ -386,11 +384,6 @@ final class MonitaskControlService: ObservableObject {
         }
 
         let labeledCandidates = candidates.filter { isTrackingToggleCandidate($0) }
-        // An unlabeled button is only a safe fallback in the window with the timer.
-        // Other Monitask windows (notably Notifications) also contain pressable buttons.
-        guard !labeledCandidates.isEmpty || timerFrame != nil else {
-            return nil
-        }
         let preferredCandidates = labeledCandidates.isEmpty ? candidates : labeledCandidates
 
         let enabledCandidates = candidates.filter { $0.isEnabled }
@@ -422,9 +415,7 @@ final class MonitaskControlService: ObservableObject {
     }
 
     private func findRefreshElement(in appElement: AXUIElement) -> AXUIElement? {
-        guard let allElements = trackingWindowElements(in: appElement) else {
-            return nil
-        }
+        let allElements = trackingWindowElements(in: appElement)
         guard !allElements.isEmpty else {
             return nil
         }
@@ -457,16 +448,19 @@ final class MonitaskControlService: ObservableObject {
         return nil
     }
 
-    private func trackingWindowElements(in appElement: AXUIElement) -> [Candidate]? {
-        guard let windows = copyElementsAttribute(appElement, attribute: kAXWindowsAttribute as CFString) else {
-            return nil
-        }
+    private func trackingWindowElements(in appElement: AXUIElement) -> [Candidate] {
+        let windows = copyElementsAttribute(appElement, attribute: kAXWindowsAttribute as CFString) ?? []
 
         var labeledWindow: [Candidate]?
+        var notificationWindows: [AXUIElement] = []
         for window in windows {
             let elements = gatherElements(in: window)
             if elements.contains(where: { isTimer($0) }) {
                 return elements
+            }
+            if isNotificationWindow(elements) {
+                notificationWindows.append(window)
+                continue
             }
             if labeledWindow == nil, elements.contains(where: {
                 ($0.role == kAXCheckBoxRole as String || $0.role == kAXButtonRole as String)
@@ -476,7 +470,19 @@ final class MonitaskControlService: ObservableObject {
                 labeledWindow = elements
             }
         }
-        return labeledWindow
+        if let labeledWindow {
+            return labeledWindow
+        }
+
+        // Monitask also exposes controls under the application root on some UI states.
+        // Preserve the original broad search, but exclude the Notifications window.
+        return gatherElements(in: appElement, excluding: notificationWindows)
+    }
+
+    private func isNotificationWindow(_ elements: [Candidate]) -> Bool {
+        let labels = elements.filter { $0.role == kAXStaticTextRole as String }.map(\.title)
+        return labels.contains(where: { $0.range(of: #"^Unread\s*\("#, options: [.regularExpression, .caseInsensitive]) != nil })
+            && labels.contains(where: { $0.range(of: #"^Read\s*\("#, options: [.regularExpression, .caseInsensitive]) != nil })
     }
 
     private func isTimer(_ candidate: Candidate) -> Bool {
@@ -522,6 +528,9 @@ final class MonitaskControlService: ObservableObject {
             }
             if candidate.frame.maxX <= timerFrame.minX + 8 {
                 total += 40
+                if timerFrame.minX - candidate.frame.maxX < 20 {
+                    total += 150
+                }
             }
         }
 
@@ -534,12 +543,13 @@ final class MonitaskControlService: ObservableObject {
         return total
     }
 
-    private func gatherElements(in root: AXUIElement) -> [Candidate] {
+    private func gatherElements(in root: AXUIElement, excluding excludedWindows: [AXUIElement] = []) -> [Candidate] {
         let deadline = CFAbsoluteTimeGetCurrent() + 0.35
         let maxVisitedCount = 1400
         var result: [Candidate] = []
         var queue: [AXUIElement] = [root]
         var visited = Set<String>()
+        let rootID = "\(Unmanaged.passUnretained(root).toOpaque())"
 
         while let current = queue.popLast() {
             if CFAbsoluteTimeGetCurrent() > deadline || visited.count >= maxVisitedCount {
@@ -549,6 +559,7 @@ final class MonitaskControlService: ObservableObject {
             let id = "\(Unmanaged.passUnretained(current).toOpaque())"
             if visited.contains(id) { continue }
             visited.insert(id)
+            if excludedWindows.contains(where: { CFEqual(current, $0) }) { continue }
 
             if let candidate = candidate(from: current) {
                 result.append(candidate)
@@ -556,6 +567,10 @@ final class MonitaskControlService: ObservableObject {
 
             if let children = copyElementsAttribute(current, attribute: kAXChildrenAttribute as CFString) {
                 queue.append(contentsOf: children)
+            }
+            if id == rootID,
+               let windows = copyElementsAttribute(current, attribute: kAXWindowsAttribute as CFString) {
+                queue.append(contentsOf: windows)
             }
         }
 
@@ -567,7 +582,8 @@ final class MonitaskControlService: ObservableObject {
             return nil
         }
 
-        let title = copyStringAttribute(element, attribute: kAXTitleAttribute as CFString) ?? ""
+        let title = copyStringAttribute(element, attribute: kAXTitleAttribute as CFString)
+            ?? copyStringAttribute(element, attribute: kAXValueAttribute as CFString) ?? ""
         let description = copyStringAttribute(element, attribute: kAXDescriptionAttribute as CFString) ?? ""
         let isEnabled = copyBoolAttribute(element, attribute: kAXEnabledAttribute as CFString) ?? true
         let actions = copyActionNames(element)
