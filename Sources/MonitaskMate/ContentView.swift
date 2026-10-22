@@ -24,6 +24,7 @@ struct ContentView: View {
     @ObservedObject var floatingCounterManager: FloatingCounterManager
     @ObservedObject var controlService: MonitaskControlService
     @ObservedObject var autoPauseManager: AutoPauseManager
+    @ObservedObject var mouseMoverManager: MouseMoverManager
     @State private var selectedSection: SectionItem? = .overview
 
     var body: some View {
@@ -48,7 +49,8 @@ struct ContentView: View {
                         launchAtLoginManager: launchAtLoginManager,
                         floatingCounterManager: floatingCounterManager,
                         controlService: controlService,
-                        autoPauseManager: autoPauseManager
+                        autoPauseManager: autoPauseManager,
+                        mouseMoverManager: mouseMoverManager
                     )
                 }
             }
@@ -153,6 +155,7 @@ struct MenuPanelView: View {
     @ObservedObject var reminderManager: ReminderManager
     @ObservedObject var controlService: MonitaskControlService
     @ObservedObject var autoPauseManager: AutoPauseManager
+    @ObservedObject var mouseMoverManager: MouseMoverManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -247,6 +250,22 @@ struct MenuPanelView: View {
                 Text(lastActionStatus)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Divider()
+            Text("Mouse Mover")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Toggle("Move Every 3 Seconds", isOn: Binding(
+                get: { mouseMoverManager.isEnabled },
+                set: { mouseMoverManager.setEnabled($0) }
+            ))
+
+            if !mouseMoverManager.hasAccessibilityPermission {
+                Button("Enable Accessibility") {
+                    mouseMoverManager.requestAccessibilityPermission()
+                }
             }
 
             Divider()

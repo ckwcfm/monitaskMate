@@ -21,6 +21,7 @@
 		A02F7287A2E59653A0600AF7 /* AutoPauseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1A36FF1CDB95539A58C3C7 /* AutoPauseManager.swift */; };
 		B9B64EBF6BF47DF95BBD0184 /* IdlePausePopupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43469955C21249957AA7FD2 /* IdlePausePopupManager.swift */; };
 		DC950D1FF5CB2BC6B813193E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBAC51AD5E08A587DE2EBE83 /* ContentView.swift */; };
+		F8458A787D14990FF6034887 /* MouseMoverManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6487C1304890848694FC73ED /* MouseMoverManager.swift */; };
 		FD2E73EBEDFBBF45CC63BBFD /* MonitaskReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91FC3236BA03900420C62B0B /* MonitaskReader.swift */; };
 /* End PBXBuildFile section */
 
@@ -28,6 +29,7 @@
 		158E9ED46E95108F6D99FE30 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		247F61D32A66822CFC89F049 /* ReminderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderManager.swift; sourceTree = "<group>"; };
 		2801BDC18CAD6F073619B9D9 /* MonitaskModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitaskModels.swift; sourceTree = "<group>"; };
+		6487C1304890848694FC73ED /* MouseMoverManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseMoverManager.swift; sourceTree = "<group>"; };
 		6629B7E2430EFF0F2CAA90BE /* TrackingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingViewModel.swift; sourceTree = "<group>"; };
 		689BFB7AEAA76F278F54A3AC /* MenuBarIconFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconFactory.swift; sourceTree = "<group>"; };
 		6BCE501C0F58E0AFCC48879E /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
@@ -59,6 +61,7 @@
 				D923AF0440DE2DE25D0F75A1 /* MonitaskMateApp.swift */,
 				2801BDC18CAD6F073619B9D9 /* MonitaskModels.swift */,
 				91FC3236BA03900420C62B0B /* MonitaskReader.swift */,
+				6487C1304890848694FC73ED /* MouseMoverManager.swift */,
 				247F61D32A66822CFC89F049 /* ReminderManager.swift */,
 				D212258219D27183FEBE0F75 /* SettingsView.swift */,
 				6629B7E2430EFF0F2CAA90BE /* TrackingViewModel.swift */,
@@ -114,6 +117,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					4525D205643506262065ED06 = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -164,6 +168,7 @@
 				5FDDAF74A7C13371BDD828AE /* MonitaskMateApp.swift in Sources */,
 				943A11110FE76F9678253F8E /* MonitaskModels.swift in Sources */,
 				FD2E73EBEDFBBF45CC63BBFD /* MonitaskReader.swift in Sources */,
+				F8458A787D14990FF6034887 /* MouseMoverManager.swift in Sources */,
 				551FDE173313EFFF36655A85 /* ReminderManager.swift in Sources */,
 				57E23F7A921251890CF0981F /* SettingsView.swift in Sources */,
 				5680CAFA040D5AE872892BEA /* TrackingViewModel.swift in Sources */,
@@ -179,8 +184,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
-				DEVELOPMENT_TEAM = HMG393LK63;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MonitaskMate;
@@ -191,7 +196,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.9;
+				MARKETING_VERSION = 0.1.10;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinwong.MonitaskMate;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -323,8 +328,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
-				DEVELOPMENT_TEAM = HMG393LK63;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = MonitaskMate;
@@ -335,7 +340,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.9;
+				MARKETING_VERSION = 0.1.10;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinwong.MonitaskMate;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;

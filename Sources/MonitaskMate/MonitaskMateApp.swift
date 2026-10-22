@@ -9,6 +9,7 @@ struct MonitaskMateApp: App {
     @StateObject private var controlService: MonitaskControlService
     @StateObject private var autoPauseManager: AutoPauseManager
     @StateObject private var idlePausePopupManager: IdlePausePopupManager
+    @StateObject private var mouseMoverManager: MouseMoverManager
 
     init() {
         let reminderManager = ReminderManager()
@@ -17,12 +18,14 @@ struct MonitaskMateApp: App {
         let controlService = MonitaskControlService()
         let idlePausePopupManager = IdlePausePopupManager()
         let autoPauseManager = AutoPauseManager(popupManager: idlePausePopupManager)
+        let mouseMoverManager = MouseMoverManager()
         _reminderManager = StateObject(wrappedValue: reminderManager)
         _launchAtLoginManager = StateObject(wrappedValue: launchAtLoginManager)
         _floatingCounterManager = StateObject(wrappedValue: floatingCounterManager)
         _controlService = StateObject(wrappedValue: controlService)
         _idlePausePopupManager = StateObject(wrappedValue: idlePausePopupManager)
         _autoPauseManager = StateObject(wrappedValue: autoPauseManager)
+        _mouseMoverManager = StateObject(wrappedValue: mouseMoverManager)
         _viewModel = StateObject(
             wrappedValue: TrackingViewModel(
                 reminderManager: reminderManager,
@@ -39,7 +42,8 @@ struct MonitaskMateApp: App {
                 viewModel: viewModel,
                 reminderManager: reminderManager,
                 controlService: controlService,
-                autoPauseManager: autoPauseManager
+                autoPauseManager: autoPauseManager,
+                mouseMoverManager: mouseMoverManager
             )
         } label: {
             Image(nsImage: viewModel.menuBarLabelImage)
@@ -52,7 +56,8 @@ struct MonitaskMateApp: App {
                 launchAtLoginManager: launchAtLoginManager,
                 floatingCounterManager: floatingCounterManager,
                 controlService: controlService,
-                autoPauseManager: autoPauseManager
+                autoPauseManager: autoPauseManager,
+                mouseMoverManager: mouseMoverManager
             )
                 .frame(minWidth: 360, minHeight: 240)
         }

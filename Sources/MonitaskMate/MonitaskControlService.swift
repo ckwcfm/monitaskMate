@@ -365,14 +365,15 @@ final class MonitaskControlService: ObservableObject {
     }
 
     private func findToggleElement(in appElement: AXUIElement) -> AXUIElement? {
-        let allElements = gatherElements(in: appElement)
+        guard let allElements = trackingWindowElements(in: appElement) else {
+            return nil
+        }
         guard !allElements.isEmpty else {
             return nil
         }
 
         let timerFrame = allElements
-            .filter { $0.role == kAXStaticTextRole as String }
-            .first { $0.title.range(of: #"^\d{2}:\d{2}:\d{2}$"#, options: .regularExpression) != nil }?
+            .first { isTimer($0) }?
             .frame
 
         let candidates = allElements.filter {
@@ -385,6 +386,11 @@ final class MonitaskControlService: ObservableObject {
         }
 
         let labeledCandidates = candidates.filter { isTrackingToggleCandidate($0) }
+        // An unlabeled button is only a safe fallback in the window with the timer.
+        // Other Monitask windows (notably Notifications) also contain pressable buttons.
+        guard !labeledCandidates.isEmpty || timerFrame != nil else {
+            return nil
+        }
         let preferredCandidates = labeledCandidates.isEmpty ? candidates : labeledCandidates
 
         let enabledCandidates = candidates.filter { $0.isEnabled }
@@ -416,7 +422,9 @@ final class MonitaskControlService: ObservableObject {
     }
 
     private func findRefreshElement(in appElement: AXUIElement) -> AXUIElement? {
-        let allElements = gatherElements(in: appElement)
+        guard let allElements = trackingWindowElements(in: appElement) else {
+            return nil
+        }
         guard !allElements.isEmpty else {
             return nil
         }
@@ -447,6 +455,33 @@ final class MonitaskControlService: ObservableObject {
         }
 
         return nil
+    }
+
+    private func trackingWindowElements(in appElement: AXUIElement) -> [Candidate]? {
+        guard let windows = copyElementsAttribute(appElement, attribute: kAXWindowsAttribute as CFString) else {
+            return nil
+        }
+
+        var labeledWindow: [Candidate]?
+        for window in windows {
+            let elements = gatherElements(in: window)
+            if elements.contains(where: { isTimer($0) }) {
+                return elements
+            }
+            if labeledWindow == nil, elements.contains(where: {
+                ($0.role == kAXCheckBoxRole as String || $0.role == kAXButtonRole as String)
+                    && $0.actions.contains(kAXPressAction as String)
+                    && isTrackingToggleCandidate($0)
+            }) {
+                labeledWindow = elements
+            }
+        }
+        return labeledWindow
+    }
+
+    private func isTimer(_ candidate: Candidate) -> Bool {
+        candidate.role == kAXStaticTextRole as String
+            && candidate.title.range(of: #"^\d{2}:\d{2}:\d{2}$"#, options: .regularExpression) != nil
     }
 
     private func score(_ candidate: Candidate, timerFrame: CGRect?) -> Int {
@@ -499,13 +534,12 @@ final class MonitaskControlService: ObservableObject {
         return total
     }
 
-    private func gatherElements(in appElement: AXUIElement) -> [Candidate] {
+    private func gatherElements(in root: AXUIElement) -> [Candidate] {
         let deadline = CFAbsoluteTimeGetCurrent() + 0.35
         let maxVisitedCount = 1400
         var result: [Candidate] = []
-        var queue: [AXUIElement] = [appElement]
+        var queue: [AXUIElement] = [root]
         var visited = Set<String>()
-        let rootID = "\(Unmanaged.passUnretained(appElement).toOpaque())"
 
         while let current = queue.popLast() {
             if CFAbsoluteTimeGetCurrent() > deadline || visited.count >= maxVisitedCount {
@@ -522,11 +556,6 @@ final class MonitaskControlService: ObservableObject {
 
             if let children = copyElementsAttribute(current, attribute: kAXChildrenAttribute as CFString) {
                 queue.append(contentsOf: children)
-            }
-
-            if id == rootID,
-               let windows = copyElementsAttribute(current, attribute: kAXWindowsAttribute as CFString) {
-                queue.append(contentsOf: windows)
             }
         }
 

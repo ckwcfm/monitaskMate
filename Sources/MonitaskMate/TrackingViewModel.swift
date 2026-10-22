@@ -412,7 +412,7 @@ final class TrackingViewModel: ObservableObject {
     func format(seconds: Int) -> String {
         let hours = seconds / 3600
         let minutes = (seconds % 3600) / 60
-        let h = String(format: "%02d", min(hours, 99))
+        let h = String(format: "%02d", hours)
         let m = String(format: "%02d", minutes)
         return "\(h)h\u{2006}\(m)m"
     }
@@ -425,7 +425,7 @@ final class TrackingViewModel: ObservableObject {
             let hours = seconds / 3600
             let minutes = (seconds % 3600) / 60
             let secondsPart = seconds % 60
-            let h = String(format: "%02d", min(hours, 99))
+            let h = String(format: "%02d", hours)
             let m = String(format: "%02d", minutes)
             let s = String(format: "%02d", secondsPart)
             return "\(h)h\u{2006}\(m)m\u{2006}\(s)s"
@@ -437,14 +437,14 @@ final class TrackingViewModel: ObservableObject {
         case .hoursMinutes:
             let hours = seconds / 3600
             let minutes = (seconds % 3600) / 60
-            let h = String(format: "%02d", min(hours, 99))
+            let h = String(format: "%02d", hours)
             let m = String(format: "%02d", minutes)
             return "\(h)h\u{2009}\(m)m"
         case .hoursMinutesSeconds:
             let hours = seconds / 3600
             let minutes = (seconds % 3600) / 60
             let secondsPart = seconds % 60
-            let h = String(format: "%02d", min(hours, 99))
+            let h = String(format: "%02d", hours)
             let m = String(format: "%02d", minutes)
             let s = String(format: "%02d", secondsPart)
             return "\(h)h\u{2009}\(m)m\u{2009}\(s)s"

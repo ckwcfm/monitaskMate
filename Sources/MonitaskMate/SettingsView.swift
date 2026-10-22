@@ -8,6 +8,7 @@ struct SettingsView: View {
     @ObservedObject var floatingCounterManager: FloatingCounterManager
     @ObservedObject var controlService: MonitaskControlService
     @ObservedObject var autoPauseManager: AutoPauseManager
+    @ObservedObject var mouseMoverManager: MouseMoverManager
 
     private let reminderMinuteOptions = [5, 10, 15, 20, 30]
     private let idleThresholdOptions = [30, 60, 90, 120, 180]
@@ -180,6 +181,33 @@ struct SettingsView: View {
                     .disabled(!autoPauseManager.isEnabled)
                 }
 
+                sectionCard("Mouse Mover") {
+                    Toggle(isOn: Binding(
+                        get: { mouseMoverManager.isEnabled },
+                        set: { mouseMoverManager.setEnabled($0) }
+                    )) {
+                        settingTitleDescription(
+                            title: "Move Mouse Every 3 Seconds",
+                            description: "Moves the pointer one pixel back and forth to mimic mouse activity."
+                        )
+                    }
+
+                    if !mouseMoverManager.hasAccessibilityPermission {
+                        HStack {
+                            Text("Accessibility permission is required to move the pointer.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Enable Accessibility") {
+                                mouseMoverManager.requestAccessibilityPermission()
+                            }
+                            Button("Open Settings") {
+                                mouseMoverManager.openAccessibilitySettings()
+                            }
+                        }
+                    }
+                }
+
                 sectionCard("Diagnostics") {
                     Text("Last Update: \(viewModel.lastUpdatedText)")
                     Text("Status: \(viewModel.statusText)")
@@ -202,6 +230,7 @@ struct SettingsView: View {
                         launchAtLoginManager.setEnabled(false)
                         floatingCounterManager.resetToDefaults()
                         autoPauseManager.resetToDefaults()
+                        mouseMoverManager.resetToDefaults()
                     }
                 }
 
